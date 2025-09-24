@@ -9,6 +9,7 @@
 (define-constant REPUTATION_PENALTY_CHALLENGE u5)
 (define-constant REPUTATION_BONUS_VERIFIED u5)
 (define-constant MIN_AUDITOR_REPUTATION u50)
+(define-constant REPUTATION_BOOST_ENDORSE u2)
 
 (define-data-var report-counter uint u0)
 
@@ -22,7 +23,8 @@
     report-type: (string-ascii 30),
     metadata: (string-ascii 200),
     verified: bool,
-    auditor: (optional principal)
+    auditor: (optional principal),
+    archived: bool
   }
 )
 
@@ -70,6 +72,30 @@
     new-score: uint, 
     report-id: (optional uint) 
   }
+)
+(define-map report-endorsements
+  { report-id: uint, endorser: principal }
+  { timestamp: uint }
+)
+
+(define-map endorsement-count
+  { report-id: uint }
+  { count: uint }
+)
+
+(define-map auditor-feedback
+  { report-id: uint, auditor: principal }
+  { feedback: (string-ascii 200), timestamp: uint, action: (string-ascii 10) }
+)
+
+(define-map report-comments
+  { report-id: uint, comment-id: uint }
+  { commenter: principal, comment: (string-ascii 500), timestamp: uint }
+)
+
+(define-map comment-counter
+  { report-id: uint }
+  { count: uint }
 )
 
 (define-read-only (get-report (report-id uint))
@@ -200,7 +226,7 @@
       { action: action, score-change: (- 0 (to-int penalty)), new-score: new-score, report-id: report-id }
     )
     new-score
-  )
+   )
 )
 
 (define-public (authorize-auditor (auditor principal))
@@ -247,7 +273,8 @@
         report-type: report-type,
         metadata: metadata,
         verified: false,
-        auditor: none
+        auditor: none,
+        archived: false
       }
     )
     (map-set version-counter
@@ -286,6 +313,7 @@
     (new-version (+ (get count version-info) u1))
   )
     (asserts! (is-eq tx-sender (get creator report)) ERR_UNAUTHORIZED)
+    (asserts! (not (get archived report)) ERR_UNAUTHORIZED)
     (asserts! (> (len new-hash) u0) ERR_INVALID_HASH)
     (map-set reports
       { report-id: report-id }
@@ -362,6 +390,19 @@
     (ok true)
   )
 )
+(define-public (endorse-report (report-id uint))
+  (let (
+    (report (unwrap! (get-report report-id) ERR_NOT_FOUND))
+    (creator (get creator report))
+    (current-count (get count (get-endorsement-count report-id)))
+  )
+    (asserts! (is-none (map-get? report-endorsements { report-id: report-id, endorser: tx-sender })) ERR_ALREADY_EXISTS)
+    (map-set report-endorsements { report-id: report-id, endorser: tx-sender } { timestamp: stacks-block-height })
+    (map-set endorsement-count { report-id: report-id } { count: (+ current-count u1) })
+    (update-reputation-score creator REPUTATION_BOOST_ENDORSE "report-endorsed" (some report-id))
+    (ok true)
+  )
+)
 
 (define-read-only (get-report-trail (report-id uint))
   (let (
@@ -393,3 +434,65 @@
     })
   )
 )
+
+(define-read-only (is-report-archived (report-id uint))
+  (match (get-report report-id)
+    report (get archived report)
+    false
+  )
+)
+
+(define-public (archive-report (report-id uint))
+  (let ((report (unwrap! (get-report report-id) ERR_NOT_FOUND)))
+    (asserts! (is-eq tx-sender (get creator report)) ERR_UNAUTHORIZED)
+    (asserts! (not (get archived report)) ERR_ALREADY_EXISTS)
+    (map-set reports
+      { report-id: report-id }
+      (merge report { archived: true })
+    )
+    (ok true)
+  )
+)
+
+(define-public (submit-auditor-feedback (report-id uint) (feedback (string-ascii 200)) (action (string-ascii 10)))
+ (let ((report (unwrap! (get-report report-id) ERR_NOT_FOUND)))
+   (asserts! (is-qualified-auditor tx-sender) ERR_INSUFFICIENT_REPUTATION)
+   (asserts! (is-eq (some tx-sender) (get auditor report)) ERR_UNAUTHORIZED)
+   (asserts! (or (is-eq action "verify") (is-eq action "challenge")) ERR_INVALID_HASH)
+   (map-set auditor-feedback { report-id: report-id, auditor: tx-sender } { feedback: feedback, timestamp: stacks-block-height, action: action })
+   (ok true)
+ )
+)
+
+(define-read-only (get-auditor-feedback (report-id uint) (auditor principal))
+  (map-get? auditor-feedback { report-id: report-id, auditor: auditor })
+)
+
+(define-public (add-comment (report-id uint) (comment (string-ascii 500)))
+  (let (
+    (report (unwrap! (get-report report-id) ERR_NOT_FOUND))
+    (current-count (get count (default-to { count: u0 } (map-get? comment-counter { report-id: report-id }))))
+    (new-id (+ current-count u1))
+  )
+    (map-set report-comments
+      { report-id: report-id, comment-id: new-id }
+      { commenter: tx-sender, comment: comment, timestamp: stacks-block-height }
+    )
+    (map-set comment-counter
+      { report-id: report-id }
+      { count: new-id }
+    )
+    (ok new-id)
+  )
+)
+
+(define-read-only (get-comment (report-id uint) (comment-id uint))
+  (map-get? report-comments { report-id: report-id, comment-id: comment-id })
+)
+
+(define-read-only (get-comment-count (report-id uint))
+  (default-to { count: u0 } (map-get? comment-counter { report-id: report-id }))
+)
+
+(define-read-only (get-endorsement-count (report-id uint))
+  (default-to { count: u0 } (map-get? endorsement-count { report-id: report-id })))

@@ -11,6 +11,8 @@ This Clarity smart contract provides an immutable audit trail for AI-generated r
 - 📚 **Version History** - Complete audit trail of all report modifications
 - 🛡️ **Tamper Proof** - Cryptographic hashes ensure document integrity
 - 🏛️ **Regulatory Ready** - Built-in proof-of-generation for compliance
+- 💬 **Auditor Feedback** - Detailed textual feedback from auditors for enhanced transparency
+- 💬 **Community Comments** - Users can add comments to reports for collaborative feedback and discussions
 
 ## 🚀 Quick Start
 
@@ -64,7 +66,46 @@ clarinet deploy
 (contract-call? .AI-Generated-Reports-with-Immutable-Audit-Trail get-creator-stats creator-principal)
 ```
 
-## 🛠️ Admin Functions
+## 💬 Auditor Feedback System
+
+### Submit Auditor Feedback
+```clarity
+(contract-call? .AI-Generated-Reports-with-Immutable-Audit-Trail submit-auditor-feedback
+  report-id
+  "Detailed feedback on the report quality and issues found"
+  "verify")
+```
+
+### Get Auditor Feedback
+```clarity
+(contract-call? .AI-Generated-Reports-with-Immutable-Audit-Trail get-auditor-feedback
+  report-id
+  auditor-principal)
+```
+
+## 💬 Report Commenting System
+
+### Add Comment to Report
+```clarity
+(contract-call? .AI-Generated-Reports-with-Immutable-Audit-Trail add-comment
+  report-id
+  "Your detailed comment about the report")
+```
+
+### Get Comment
+```clarity
+(contract-call? .AI-Generated-Reports-with-Immutable-Audit-Trail get-comment
+  report-id
+  comment-id)
+```
+
+### Get Comment Count
+```clarity
+(contract-call? .AI-Generated-Reports-with-Immutable-Audit-Trail get-comment-count
+  report-id)
+```
+
+## �️ Admin Functions
 
 ### Authorize Auditor
 ```clarity
