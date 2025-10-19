@@ -10,6 +10,7 @@
 (define-constant REPUTATION_BONUS_VERIFIED u5)
 (define-constant MIN_AUDITOR_REPUTATION u50)
 (define-constant REPUTATION_BOOST_ENDORSE u2)
+(define-constant FLAG_THRESHOLD u5)
 
 (define-data-var report-counter uint u0)
 
@@ -94,6 +95,16 @@
 )
 
 (define-map comment-counter
+  { report-id: uint }
+  { count: uint }
+)
+
+(define-map report-flags
+  { report-id: uint, flagger: principal }
+  { timestamp: uint }
+)
+
+(define-map flag-counter
   { report-id: uint }
   { count: uint }
 )
@@ -496,3 +507,21 @@
 
 (define-read-only (get-endorsement-count (report-id uint))
   (default-to { count: u0 } (map-get? endorsement-count { report-id: report-id })))
+
+(define-public (flag-report (report-id uint))
+  (let (
+    (report (unwrap! (get-report report-id) ERR_NOT_FOUND))
+    (current-count (get count (default-to { count: u0 } (map-get? flag-counter { report-id: report-id }))))
+  )
+    (asserts! (is-none (map-get? report-flags { report-id: report-id, flagger: tx-sender })) ERR_ALREADY_EXISTS)
+    (map-set report-flags { report-id: report-id, flagger: tx-sender } { timestamp: stacks-block-height })
+    (map-set flag-counter { report-id: report-id } { count: (+ current-count u1) })
+    (ok true)
+  )
+)
+
+(define-read-only (get-flag-count (report-id uint))
+  (default-to { count: u0 } (map-get? flag-counter { report-id: report-id })))
+
+(define-read-only (is-report-flagged (report-id uint))
+  (>= (get count (get-flag-count report-id)) FLAG_THRESHOLD))

@@ -1,4 +1,4 @@
-> 🔐 **Blockchain-powered verification for AI-generated financial and business reports**
+>  **Blockchain-powered verification for AI-generated financial and business reports**
 
 ## 📋 Overview
 
@@ -13,6 +13,7 @@ This Clarity smart contract provides an immutable audit trail for AI-generated r
 - 🏛️ **Regulatory Ready** - Built-in proof-of-generation for compliance
 - 💬 **Auditor Feedback** - Detailed textual feedback from auditors for enhanced transparency
 - 💬 **Community Comments** - Users can add comments to reports for collaborative feedback and discussions
+- 🚩 **Report Flagging** - Community-driven moderation system to highlight potentially problematic reports
 
 ## 🚀 Quick Start
 
@@ -102,6 +103,26 @@ clarinet deploy
 ### Get Comment Count
 ```clarity
 (contract-call? .AI-Generated-Reports-with-Immutable-Audit-Trail get-comment-count
+  report-id)
+```
+
+## 🚩 Report Flagging System
+
+### Flag a Report
+```clarity
+(contract-call? .AI-Generated-Reports-with-Immutable-Audit-Trail flag-report
+  report-id)
+```
+
+### Get Flag Count
+```clarity
+(contract-call? .AI-Generated-Reports-with-Immutable-Audit-Trail get-flag-count
+  report-id)
+```
+
+### Check if Report is Flagged
+```clarity
+(contract-call? .AI-Generated-Reports-with-Immutable-Audit-Trail is-report-flagged
   report-id)
 ```
 
