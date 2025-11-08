@@ -11,6 +11,7 @@
 (define-constant MIN_AUDITOR_REPUTATION u50)
 (define-constant REPUTATION_BOOST_ENDORSE u2)
 (define-constant FLAG_THRESHOLD u5)
+(define-constant ENDORSEMENT_THRESHOLD u10)
 
 (define-data-var report-counter uint u0)
 
@@ -406,11 +407,32 @@
     (report (unwrap! (get-report report-id) ERR_NOT_FOUND))
     (creator (get creator report))
     (current-count (get count (get-endorsement-count report-id)))
+    (new-count (+ current-count u1))
   )
     (asserts! (is-none (map-get? report-endorsements { report-id: report-id, endorser: tx-sender })) ERR_ALREADY_EXISTS)
     (map-set report-endorsements { report-id: report-id, endorser: tx-sender } { timestamp: stacks-block-height })
-    (map-set endorsement-count { report-id: report-id } { count: (+ current-count u1) })
+    (map-set endorsement-count { report-id: report-id } { count: new-count })
     (update-reputation-score creator REPUTATION_BOOST_ENDORSE "report-endorsed" (some report-id))
+    (if (>= new-count ENDORSEMENT_THRESHOLD)
+      (begin
+        (map-set reports
+          { report-id: report-id }
+          (merge report { verified: true, auditor: none })
+        )
+        (let ((current-stats (get-creator-stats creator)))
+          (map-set creator-stats
+            { creator: creator }
+            {
+              total-reports: (get total-reports current-stats),
+              verified-reports: (+ (get verified-reports current-stats) u1)
+            }
+          )
+        )
+        (update-reputation-score creator REPUTATION_BONUS_VERIFIED "auto-verified" (some report-id))
+        true
+      )
+      true
+    )
     (ok true)
   )
 )
