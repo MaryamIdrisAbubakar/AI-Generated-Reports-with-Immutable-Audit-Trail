@@ -15,6 +15,7 @@ This Clarity smart contract provides an immutable audit trail for AI-generated r
 - 💬 **Community Comments** - Users can add comments to reports for collaborative feedback and discussions
 - 🚩 **Report Flagging** - Community-driven moderation system to highlight potentially problematic reports
 - 👍 **Community Endorsement** - Reports can be endorsed by community members, with automatic verification upon reaching endorsement threshold
+- ⭐ **Community Ratings** - Users can rate reports 1-5 stars for quality assessment
 
 ## 🚀 Quick Start
 
@@ -147,6 +148,24 @@ clarinet deploy
 
 ### Auto-Verification Threshold
 Reports automatically become verified when they receive 10 endorsements from community members, streamlining the verification process for highly regarded reports.
+
+## ⭐ Report Rating System
+
+### Rate a Report
+```clarity
+(contract-call? .AI-Generated-Reports-with-Immutable-Audit-Trail rate-report
+  report-id
+  rating)  ;; rating must be between 1 and 5
+```
+
+### Get Average Rating
+```clarity
+(contract-call? .AI-Generated-Reports-with-Immutable-Audit-Trail get-average-rating
+  report-id)
+```
+
+### Rating Guidelines
+Users can rate reports on a scale of 1-5 stars to provide community feedback on report quality and reliability. Each user can rate a report only once, and the average rating is calculated from all submitted ratings.
 
 ## ️ Admin Functions
 ```

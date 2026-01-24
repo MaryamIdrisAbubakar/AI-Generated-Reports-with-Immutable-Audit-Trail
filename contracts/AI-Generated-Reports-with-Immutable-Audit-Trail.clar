@@ -12,6 +12,8 @@
 (define-constant REPUTATION_BOOST_ENDORSE u2)
 (define-constant FLAG_THRESHOLD u5)
 (define-constant ENDORSEMENT_THRESHOLD u10)
+(define-constant MAX_RATING u5)
+(define-constant MIN_RATING u1)
 
 (define-data-var report-counter uint u0)
 
@@ -108,6 +110,16 @@
 (define-map flag-counter
   { report-id: uint }
   { count: uint }
+)
+
+(define-map report-ratings
+  { report-id: uint, rater: principal }
+  { rating: uint, timestamp: uint }
+)
+
+(define-map rating-aggregates
+  { report-id: uint }
+  { total-rating: uint, count: uint }
 )
 
 (define-read-only (get-report (report-id uint))
@@ -547,3 +559,29 @@
 
 (define-read-only (is-report-flagged (report-id uint))
   (>= (get count (get-flag-count report-id)) FLAG_THRESHOLD))
+
+(define-public (rate-report (report-id uint) (rating uint))
+  (let (
+    (report (unwrap! (get-report report-id) ERR_NOT_FOUND))
+    (current-aggregate (default-to { total-rating: u0, count: u0 } (map-get? rating-aggregates { report-id: report-id })))
+  )
+    (asserts! (and (>= rating MIN_RATING) (<= rating MAX_RATING)) ERR_INVALID_HASH)
+    (asserts! (is-none (map-get? report-ratings { report-id: report-id, rater: tx-sender })) ERR_ALREADY_EXISTS)
+    (map-set report-ratings { report-id: report-id, rater: tx-sender } { rating: rating, timestamp: stacks-block-height })
+    (map-set rating-aggregates { report-id: report-id } { total-rating: (+ (get total-rating current-aggregate) rating), count: (+ (get count current-aggregate) u1) })
+    (ok true)
+  )
+)
+
+(define-read-only (get-average-rating (report-id uint))
+  (let (
+    (aggregate (default-to { total-rating: u0, count: u0 } (map-get? rating-aggregates { report-id: report-id })))
+    (total (get total-rating aggregate))
+    (count (get count aggregate))
+  )
+    (if (> count u0)
+      (some (/ total count))
+      none
+    )
+  )
+)
